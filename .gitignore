@@ -23,3 +23,8 @@ tests/fake_chats/
 *.txt
 !requirements*.txt
 !chats/PUT_CHATS_HERE.txt
+
+# Windows app build (whatsapp_analyzer.spec)
+build/
+dist/
+.venv-build/

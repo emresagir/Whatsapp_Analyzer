@@ -22,8 +22,9 @@ import unicodedata
 from functools import lru_cache
 from pathlib import Path
 
-HERE = Path(__file__).parent
-DEFAULT_LEXICONS = [HERE / "lexicon.json", HERE / "lexicon_tr.json"]
+from .paths import resource
+
+DEFAULT_LEXICONS = [resource("wa_analyzer", "lexicon.json"), resource("wa_analyzer", "lexicon_tr.json")]
 
 TOKEN_RE = re.compile(r"<3|[\w']+", re.U)
 VOWELS = set("aeiou")

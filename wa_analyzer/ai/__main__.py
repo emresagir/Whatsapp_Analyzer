@@ -20,6 +20,7 @@ import sys
 from pathlib import Path
 
 from ..analysis import Settings, build_conversations, build_turns, prepare
+from ..console import utf8_console
 from ..loading import default_ai_dir, load_filtered
 
 
@@ -61,6 +62,7 @@ def _llm(a):
 
 
 def main(argv=None):
+    utf8_console()
     ap = argparse.ArgumentParser(prog="python -m wa_analyzer.ai", description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = ap.add_subparsers(dest="cmd", required=True)

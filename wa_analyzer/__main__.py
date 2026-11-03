@@ -7,12 +7,14 @@ import webbrowser
 from pathlib import Path
 
 from .analysis import Settings
+from .console import utf8_console
 from .loading import default_ai_dir, load_filtered
 from .pipeline import Options
 from .report import build_report
 
 
 def main(argv=None):
+    utf8_console()
     p = argparse.ArgumentParser(prog="wa_analyzer", description="Analyse a WhatsApp chat export locally.")
     p.add_argument("chat", nargs="?", help="exported chat: .txt or .zip")
     p.add_argument("-o", "--output", help="output HTML file (default: <chat name>_report.html)")

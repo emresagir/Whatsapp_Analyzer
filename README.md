@@ -6,7 +6,24 @@ Analyses an exported WhatsApp chat on your own computer: statistics, statistical
 Works for one-to-one and group chats, Android and iPhone exports, any chat language (Turkish-optimised word lists).
 Nothing is uploaded anywhere: AI models run on your CPU or NVIDIA GPU, the LLM runs in Ollama on your machine.
 
+## 0. Windows app (no installation)
+
+Download `WhatsAppAnalyzer-windows.zip` (from the GitHub release / Actions build), unzip it anywhere and double-click
+`WhatsAppAnalyzer.exe`. The dashboard opens in your browser; close the black window to stop it. It finds chat exports
+in the app folder, its `chats` folder, Downloads, Documents and Desktop, or you can drag & drop one.
+
+- Windows may say *"Windows protected your PC"* (the app is not code-signed): click **More info → Run anyway**.
+- Command line works too: `WhatsAppAnalyzer.exe chat.txt --open` (same options as in section 3).
+- The app contains the report, statistics and dashboard. The **local AI is not included** (PyTorch + models are
+  several GB): for that, install from source (`setup_windows.bat`, see below).
+
+Building the app: run the *Build Windows app* workflow in GitHub Actions (or push a tag `v*`), or on a Windows PC run
+`build_windows.bat`. Both use `whatsapp_analyzer.spec` (PyInstaller) and produce `WhatsAppAnalyzer-windows.zip`.
+
 ## 1. Install
+
+Windows (Python 3.10+ from python.org): `setup_windows.bat` (CPU), `setup_windows.bat gpu` (NVIDIA) or
+`setup_windows.bat lite` (no AI). Then `.venv\Scripts\activate` in every new terminal.
 
 CPU only (no NVIDIA GPU):
 ```bash
@@ -143,5 +160,8 @@ wa_analyzer/
   ai/                          device, sentiment, topics, ollama, reader, labeling, classifier, results, sections
   pipeline.py                  runs everything -> Results
   sections.py, report.py       report sections -> HTML
+  paths.py, console.py         file locations (source / packaged app), UTF-8 console
 dashboard.py                   Streamlit app (same sections)
+app.py                         entry point of the Windows app (dashboard, or CLI with a chat file)
+whatsapp_analyzer.spec         PyInstaller recipe; build_windows.bat, .github/workflows/build-windows.yml
 ```

@@ -17,13 +17,13 @@ sys.path.insert(0, str(Path(__file__).parent))
 
 from wa_analyzer.analysis import Settings  # noqa: E402
 from wa_analyzer.loading import default_ai_dir, load_filtered  # noqa: E402
+from wa_analyzer.paths import chat_search_dirs, is_frozen  # noqa: E402
 from wa_analyzer.pipeline import Options, analyze  # noqa: E402
 from wa_analyzer.report import meta_line, render_html  # noqa: E402
 from wa_analyzer.sections import Fig, Grid, Html, Table, build_sections, style_fig  # noqa: E402
 
 st.set_page_config(page_title="WhatsApp Analyzer", page_icon="💬", layout="wide")
 TAB_ORDER = ["Overview", "Activity", "Replies", "Interest", "Dynamics", "Prediction", "Group", "Words", "AI"]
-HERE = Path(__file__).parent
 
 
 # ------------------------------------------------------------------ helpers
@@ -64,11 +64,18 @@ def show_block(b):
 
 def candidate_chats() -> list[str]:
     found = []
-    for folder in [HERE / "chats", Path.home()]:
-        if folder.exists():
-            for p in sorted(folder.glob("*")):
-                if p.suffix.lower() in (".txt", ".zip") and p.stat().st_size > 1000 and "requirements" not in p.name:
+    for folder in chat_search_dirs():
+        try:
+            files = sorted(folder.glob("*"))
+        except OSError:
+            continue
+        for p in files:
+            try:
+                if p.suffix.lower() in (".txt", ".zip") and p.is_file() and p.stat().st_size > 1000 \
+                        and "requirements" not in p.name:
                     found.append(str(p))
+            except OSError:
+                continue
     return found
 
 
@@ -148,43 +155,49 @@ options_t = tuple(sorted({"stats": run_stats, "bootstrap": int(boot), "predict_h
 # ------------------------------------------------------------------ run local AI from the dashboard
 
 with st.sidebar.expander("Run local AI", expanded=False):
-    st.caption("Models run on this computer. First use downloads them once. On CPU this can take a while; "
-               "results are cached so you can stop and continue.")
-    device = st.radio("Device", ["auto", "cpu", "cuda"], horizontal=True)
-    ollama_model = st.text_input("Ollama model", value="qwen2.5:3b" if device == "cpu" else "qwen2.5:7b")
-    per_month = st.number_input("LLM: conversations per month", 1, 100, 4 if device == "cpu" else 12)
-    max_turns = st.number_input("Sentiment: max turns (0 = all)", 0, 500000, 0, step=1000)
-    jobs = st.multiselect("What to run", ["sentiment", "topics", "read"], default=[])
-    if st.button("Run", disabled=not jobs):
-        from wa_analyzer.analysis import build_conversations, build_turns, prepare
-        df_ai = cached_load(path, mtime, date_order, since, until, exclude)
-        s_ai = Settings(*settings_t)
-        m_ai = prepare(df_ai, s_ai)
-        convs_ai = build_conversations(m_ai, build_turns(m_ai), s_ai)
-        logbox = st.empty()
-        lines: list[str] = []
+    if is_frozen():
+        st.caption("The local AI is not included in the Windows app (it needs PyTorch and Ollama, several GB). "
+                   "Install from source to use it: see the README. AI results created elsewhere "
+                   "(a '<chat name>_ai' folder next to the chat) are still shown.")
+    else:
+        st.caption("Models run on this computer. First use downloads them once. On CPU this can take a while; "
+                   "results are cached so you can stop and continue.")
+        device = st.radio("Device", ["auto", "cpu", "cuda"], horizontal=True)
+        ollama_model = st.text_input("Ollama model", value="qwen2.5:3b" if device == "cpu" else "qwen2.5:7b")
+        per_month = st.number_input("LLM: conversations per month", 1, 100, 4 if device == "cpu" else 12)
+        max_turns = st.number_input("Sentiment: max turns (0 = all)", 0, 500000, 0, step=1000)
+        jobs = st.multiselect("What to run", ["sentiment", "topics", "read"], default=[])
+        if st.button("Run", disabled=not jobs):
+            from wa_analyzer.analysis import build_conversations, build_turns, prepare
+            df_ai = cached_load(path, mtime, date_order, since, until, exclude)
+            s_ai = Settings(*settings_t)
+            m_ai = prepare(df_ai, s_ai)
+            convs_ai = build_conversations(m_ai, build_turns(m_ai), s_ai)
+            logbox = st.empty()
+            lines: list[str] = []
 
-        def log(msg):
-            lines.append(str(msg))
-            logbox.code("\n".join(lines[-12:]))
-        try:
-            if "sentiment" in jobs:
-                from wa_analyzer.ai import sentiment as S
-                S.run(m_ai, ai_dir, device=device, max_turns=int(max_turns) or None, log=log)
-            if "topics" in jobs:
-                from wa_analyzer.ai import topics as T
-                T.run(m_ai, ai_dir, device=device, log=log)
-            if "read" in jobs:
-                from wa_analyzer.ai import reader as R
-                from wa_analyzer.ai.ollama import Ollama
-                llm = Ollama(model=ollama_model, device="cpu" if device == "cpu" else "auto")
-                R.run(m_ai, convs_ai, ai_dir, llm, per_month=int(per_month),
-                      max_chars=4000 if device == "cpu" else 8000, log=log)
-            st.success("Done. Tick 'Include AI results' above.")
-        except ImportError as e:
-            st.error(f"Missing package: {e}. Run bash setup_cpu.sh or bash setup_gpu.sh first.")
-        except Exception as e:
-            st.error(f"{type(e).__name__}: {e}")
+            def log(msg):
+                lines.append(str(msg))
+                logbox.code("\n".join(lines[-12:]))
+            try:
+                if "sentiment" in jobs:
+                    from wa_analyzer.ai import sentiment as S
+                    S.run(m_ai, ai_dir, device=device, max_turns=int(max_turns) or None, log=log)
+                if "topics" in jobs:
+                    from wa_analyzer.ai import topics as T
+                    T.run(m_ai, ai_dir, device=device, log=log)
+                if "read" in jobs:
+                    from wa_analyzer.ai import reader as R
+                    from wa_analyzer.ai.ollama import Ollama
+                    llm = Ollama(model=ollama_model, device="cpu" if device == "cpu" else "auto")
+                    R.run(m_ai, convs_ai, ai_dir, llm, per_month=int(per_month),
+                          max_chars=4000 if device == "cpu" else 8000, log=log)
+                st.success("Done. Tick 'Include AI results' above.")
+            except ImportError as e:
+                st.error(f"Missing package: {e}. Install the AI part first "
+                         "(setup_cpu.sh / setup_gpu.sh, or setup_windows.bat on Windows).")
+            except Exception as e:
+                st.error(f"{type(e).__name__}: {e}")
 
 with st.sidebar.expander("Test the word classifier", expanded=False):
     txt = st.text_input("Message", value="seni seviom aşkm 😘")
